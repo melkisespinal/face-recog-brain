@@ -6,6 +6,12 @@ import Navigation from './components/Navigation/Navigation';
 import Logo from './components/Logo/Logo';
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
 import Rank from './components/Rank/Rank';
+import FaceRecognition from './components/FaceRecognition/FaceRecognition';
+//Clarifai API
+import Clarifai from 'clarifai';
+const clarifaiApp = new Clarifai.App({
+ apiKey: 'ab0bbd88f4c6412dafe4e5ef7e3dd69a'
+});
 
 const particlesJsParams = {
   particles: {
@@ -23,16 +29,43 @@ class App extends Component {
   constructor(){
     super();
     this.state = {
-      input: ''
+      input: '', //default
+      imgUrl: '',//default
+      box: {
+
+      }
     }
   }
 
+  displayFaceBoxes = (box) => {
+    
+    this.setState({box: box});
+  }
+
+  calculateFaceLocation = (data) => {
+    const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box;
+    const imageTag = document.getElementById('inputImage');
+    const width = Number(imageTag.width);
+    const height = Number(imageTag.height);
+    
+    return {
+      leftCol: clarifaiFace.left_col * width,
+      topRow: clarifaiFace.top_row * height,
+      rightCol: width - (clarifaiFace.right_col * width),
+      bottomRow: height - (clarifaiFace.bottom_row * height)
+    };
+  }
+
   onInputChange = (event) => {
-    console.log(event.target.value);
+    this.setState({input: event.target.value});
   }
 
   onButtonSubmit = () => {
-    console.log('clicked detect');
+    this.setState({imgUrl: this.state.input});
+    clarifaiApp.models
+      .predict(Clarifai.FACE_DETECT_MODEL,this.state.input)
+      .then(response => this.displayFaceBoxes(this.calculateFaceLocation(response)))
+      .catch(err => console.log(err));
   }
 
   render(){
@@ -48,8 +81,7 @@ class App extends Component {
           onInputChange={this.onInputChange}
           onButtonSubmit={this.onButtonSubmit}
         />
-        {/*
-        <FaceRecognition />*/}
+        <FaceRecognition imgUrl={this.state.imgUrl} box={this.state.box}/>
       </div>
     );
   }
